@@ -1,7 +1,8 @@
 mod error;
 
 use std::fmt;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Mul, Div};
+use std::convert::TryFrom;
 use error::{FieldError};
 
 /// Represents a single finite field element
@@ -26,6 +27,32 @@ impl FieldElement {
             num,
             order
         })
+    }
+
+    fn pow(&self, exponent: i32) -> FieldElement {
+        let mut exp: u32 = 0;
+        if exponent < 0 {
+            exp = (i32::try_from(self.order).unwrap() - 1 + exponent)
+                .try_into().unwrap();
+        } else {
+            exp = exponent.try_into().unwrap();
+        }
+
+        let mut res = 1;
+        let mut num = self.num;
+        while exp > 0 {
+            if exp & 1 != 0 {
+                res = (res * num) % self.order;
+            }
+            num = (num * num) % self.order;
+            exp >>= 1;
+        }
+
+
+        FieldElement {
+            num: res,
+            order: self.order
+        }
     }
 }
 
@@ -57,13 +84,38 @@ impl Sub for FieldElement {
             panic!("Field elements {} and {} do not have the \
                 same order prime", self, other)
         } else {
-            let mut num = (self.num + self.order  - other.num) % self.order;
+            let num = (self.num + self.order  - other.num) % self.order;
 
             Self {
                 num,
                 order: self.order
             }
         }
+    }
+}
+
+impl Mul for FieldElement {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self {
+        if self.order != other.order {
+            panic!("Field elements {} and {} do not have the \
+                same order prime", self, other)
+        } else {
+            let num = (self.num * other.num) % self.order;
+            Self {
+                num,
+                order: self.order
+            }
+        }
+
+    }
+}
+
+impl Div for FieldElement {
+    type Output = Self;
+    fn div(self, other: Self) -> Self {
+        let other = other.pow(-1);
+        self * other
     }
 }
 
@@ -159,7 +211,86 @@ mod tests {
         let a = FieldElement::new(9, 57).unwrap();
         let b = FieldElement::new(29, 46).unwrap();
         let c = FieldElement::new(37, 57).unwrap();
-        assert_eq!((a-c-c), b);
+        assert_eq!((a-b-c), b);
+    }
+
+    #[test]
+    fn fieldelement_mul() {
+        let a = FieldElement::new(3, 13).unwrap();
+        let b = FieldElement::new(12, 13).unwrap();
+        let c = FieldElement::new(10, 13).unwrap();
+        assert_eq!(a*b, c);
+
+        let a = FieldElement::new(95, 97).unwrap();
+        let b = FieldElement::new(45, 97).unwrap();
+        let c = FieldElement::new(31, 97).unwrap();
+        let d = FieldElement::new(23, 97).unwrap();
+        assert_eq!(a*b*c, d);
+    }
+
+    #[test]
+    #[should_panic]
+    fn fieldelement_mul_panic() {
+        let a = FieldElement::new(3, 13).unwrap();
+        let b = FieldElement::new(12, 10).unwrap();
+        let c = FieldElement::new(10, 13).unwrap();
+        assert_eq!(a*b, c);
+
+        let a = FieldElement::new(95, 97).unwrap();
+        let b = FieldElement::new(45, 97).unwrap();
+        let c = FieldElement::new(31, 87).unwrap();
+        let d = FieldElement::new(23, 97).unwrap();
+        assert_eq!(a*b*c, d);
+    }
+
+    #[test]
+    fn fieldelement_pow() {
+        let a = FieldElement::new(3, 13).unwrap();
+        let b = 3;
+        let c = FieldElement::new(1, 13).unwrap();
+        assert_eq!(a.pow(b), c);
+
+        let a = FieldElement::new(2, 19).unwrap();
+        let b = FieldElement::new(7, 19).unwrap();
+        let b = b.pow(-1);
+        let c = FieldElement::new(3, 19).unwrap();
+        assert_eq!(a*b, c);
+
+        let a = FieldElement::new(2, 19).unwrap();
+        let b = FieldElement::new(7, 19).unwrap();
+        let b = b.pow(-2);
+        let c = FieldElement::new(14, 19).unwrap();
+        assert_eq!(a*b, c);
+
+        let a = FieldElement::new(7, 19).unwrap();
+        let b = FieldElement::new(5, 19).unwrap();
+        let b = b.pow(-1);
+        let c = FieldElement::new(9, 19).unwrap();
+        assert_eq!(a*b, c);
+
+        let a = FieldElement::new(11, 31).unwrap();
+        let b = FieldElement::new(4, 31).unwrap();
+        let b = b.pow(-4);
+        let c = FieldElement::new(13, 31).unwrap();
+        assert_eq!(a*b, c);
+    }
+
+    #[test]
+    fn fieldelement_div() {
+        let a = FieldElement::new(3, 31).unwrap();
+        let b = FieldElement::new(24, 31).unwrap();
+        let c = FieldElement::new(4, 31).unwrap();
+        assert_eq!(a/b, c);
+
+        let a = FieldElement::new(2, 19).unwrap();
+        let b = FieldElement::new(7, 19).unwrap();
+        let c = FieldElement::new(3, 19).unwrap();
+        assert_eq!(a/b, c);
+
+        let a = FieldElement::new(7, 19).unwrap();
+        let b = FieldElement::new(5, 19).unwrap();
+        let c = FieldElement::new(9, 19).unwrap();
+        assert_eq!(a/b, c);
     }
 
 }
