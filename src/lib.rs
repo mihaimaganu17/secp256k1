@@ -1,9 +1,86 @@
 mod error;
 mod fieldelement;
 
+use error::{PointError};
+use std::fmt::Display;
+use std::ops::Mul;
+use std::cmp::{PartialEq, Eq};
+
+// Type that represents a Big Integer stored as a Vector of u32
+struct U256(Vec<u32>);
+
+// How many hex digits should our own Big Integer digit contain
+const HEX_SIZE: u32 = 8;
+// We make radix 10**9, so each "digit" of the long number contains 9 decimal
+// digits at once
+const RADIX: u32 = 0xffff_ffff;
+
+impl U256 {
+    fn new(number: &str) -> Self {
+        // Create an iterator over the String we got
+        let decimal_vec = number.chars().collect::<Vec<char>>();
+
+        // Parse the number in a Vec of u32
+        let bigint: Vec<u32> = decimal_vec.chunks(8usize)
+            .map(|chunks| chunks.iter().rev().enumerate()
+                .fold(0u32, |n, (i, item)| {
+                println!("{} {}", n, i);
+                n as u32 + 16u32.pow(i as u32) * item.to_digit(16).unwrap() }))
+            .rev().collect();
+        U256(bigint)
+    }
+}
+
+/*
+pub trait Pow<Rhs> {
+    type Output;
+    fn pow(self, rhs: Rhs) -> Self::Output;
+}
+
+/// Represents a `point` on an eliptic curve for the form
+/// y**2 = x**3 + 5*x + 7, symmetric over the x-axis
+#[derive(Copy, Clone, Debug)]
+pub struct Point<T> {
+    /// Value for the x-axis
+    x: T,
+    /// Value for the y-axis
+    y: T,
+    /// Curve specific number
+    a: T,
+    /// Curve specific number
+    b: T,
+}
+
+impl<T: Pow<T> + Display + Mul<Output=T>> Point<T> {
+    fn new(x: T, y: T, a: T, b: T) -> Result<Self, PointError> {
+        if y.pow(2 as T) != x.pow(3 as T) + a * x + b {
+            return Err(PointError {
+                message: format!("({}, {}) is not on the curve", x, y)
+            })
+        }
+
+        Ok(Point {
+            x, y, a, b
+        })
+
+    }
+}
+
+impl<T: PartialEq> PartialEq for Point<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+                && self.a == other.a && self.b == other.b
+    }
+}
+
+impl<T: Eq> Eq for Point<T> {}
+*/
+
+
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::fieldelement::{FieldElement};
 
     #[test]
@@ -165,4 +242,15 @@ mod tests {
         assert_eq!(a/b, c);
     }
 
+    #[test]
+    fn u256_test() {
+        let a = U256::new("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
+    }
+
+    /*
+    #[test]
+    fn point_new() {
+        let p1 = Point::new(-1, -1, 5, 7);
+    }
+    */
 }
